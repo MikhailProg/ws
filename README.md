@@ -44,14 +44,13 @@ $ ./wscat localhost 1234
 
 A raw chat is opened (wscats standard [in|out]puts connected with each other via a network).
 
-Send a file:
+Send passwd file:
 
-Server:
 ```
 $ WS_SRV= ./wscat localhost 1234 < /etc/passwd
 ```
 
-Client:
+Dump received data to /tmp/passwd:
 
 ```
 $ ./wscat localhost 1234 > /tmp/passwd
@@ -59,13 +58,13 @@ $ ./wscat localhost 1234 > /tmp/passwd
 
 To change a bind point set WS_URI variable.
 
-Server provides a service at ws://localhost:1234/blah:
+The server provides a service at ws://localhost:1234/blah:
 
 ```
 $ WS_SRV= WS_URI=/blah ./wscat localhost 1234
 ```
 
-Client :
+The client connects to ws://localhost:1234/blah:
 
 ```
 $ WS_URI=/blah ./wscat localhost 1234

@@ -47,8 +47,7 @@ A raw chat is opened (wscats standard [in|out]puts are connected with each other
 Run a remote shell:
 
 ```
-$ mkfifo /tmp/io
-$ bash -i 2>&1 </tmp/io |  WS_SRV= ./wscat localhost 1234 >/tmp/io; rm /tmp/io
+$ mkfifo /tmp/io && bash -i 2>&1 </tmp/io | WS_SRV= ./wscat localhost 1234 >/tmp/io; rm -f /tmp/io
 ```
 
 Connect to the remote shell:

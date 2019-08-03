@@ -59,13 +59,13 @@ $ ./wscat localhost 1234 > /tmp/passwd
 
 To change a bind point set WS_URI variable.
 
-Server:
+Server provides a service at ws://localhost:1234/blah:
 
 ```
 $ WS_SRV= WS_URI=/blah ./wscat localhost 1234
 ```
 
-Client:
+Client :
 
 ```
 $ WS_URI=/blah ./wscat localhost 1234

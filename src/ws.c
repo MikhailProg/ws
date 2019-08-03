@@ -6,7 +6,6 @@
 #include <limits.h>
 #include <errno.h>
 #include <ctype.h>
-#include <err.h>
 
 #include "ws.h"
 #include "sha1.h"
@@ -72,8 +71,7 @@ enum {
 	STATE_O_INIT,
 	STATE_O_HDR,
 	STATE_O_PAYLOAD,
-	STATE_O_DRAIN,
-	STATE_O_PAYLOAD_WR
+	STATE_O_DRAIN
 };
 
 struct http_hdr {

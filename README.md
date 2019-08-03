@@ -30,33 +30,35 @@ usage: [WS_SRV=] [WS_URI=/uri] wscat dest port
 
 ```
 
-Run wscat as a server in one terminal.
+Run wscat as a server in one terminal:
 
 ```
 $ WS_SRV= ./wscat localhost 1234
 ```
 
-Run wscat as a client in another terminal.
+Run wscat as a client in another terminal:
 
 ```
 $ ./wscat localhost 1234
 ```
 
-A raw chat is opened (wscats standard [in|out]puts connected with each other via a network).
+A raw chat is opened (wscats standard [in|out]puts are connected with each other).
 
-Send passwd file:
-
-```
-$ WS_SRV= ./wscat localhost 1234 < /etc/passwd
-```
-
-Dump received data to /tmp/passwd:
+Run a remote shell:
 
 ```
-$ ./wscat localhost 1234 > /tmp/passwd
+$ mkfifo /tmp/io
+$ bash -i 2>&1 </tmp/io |  WS_SRV= ./wscat localhost 1234 >/tmp/io; rm /tmp/io
 ```
 
-To change a bind point set WS_URI variable.
+Connect to the remote shell:
+
+```
+$ ./wscat localhost 1234
+```
+
+
+To change WebSocket bind point set WS_URI variable.
 
 The server provides a service at ws://localhost:1234/blah:
 

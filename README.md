@@ -18,7 +18,7 @@ $ make -C src IOFUZZ=1
 
 wscat links the local standard [in|out]puts with the remote side via a network socket. The program works as a WebSocket client or as a WebSocket server.
 
-There is also a web wscat which works as a client.
+There is also a web wscat which works as a client (lives in static folder).
 
 ```
 $ ./src/wscat
@@ -58,23 +58,7 @@ Connect to the echo or remote shell from the other terminal:
 
 ```
 $ ./wscat localhost 1234
-
 ```
 
-Or open file:///path/to/ws/static/index.html in a browser and use an input field.
-
-
-To change WebSocket bind point set WS_URI variable.
-
-The server provides a service at ws://localhost:1234/blah:
-
-```
-$ WS_SRV= WS_URI=/blah ./wscat localhost 1234
-```
-
-The client connects to ws://localhost:1234/blah:
-
-```
-$ WS_URI=/blah ./wscat localhost 1234
-```
+Or open file:///path/to/ws/static/index.html in a browser and use an input field as if it is a standard input.
 

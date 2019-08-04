@@ -8,6 +8,7 @@
     ws.onopen = function() {
         console.log('ws onopen');
         output.innerText = '';
+
         ws.onmessage = function(ev) {
             //for (var i = 0; i < ev.data.length; i++)
             //    console.log(ev.data.charCodeAt(i) + ' ' + ev.data[i]);
@@ -18,7 +19,7 @@
         ws.onclose = function(ev) {
             var msg = '\n\n[Service is unavailable: ' + ev.code + 
                                   (ev.reason ? ', ' + ev.reason + ']' : ']'); 
-            console.log('ws onopen');
+            console.log('ws onclose');
             output.innerText += msg;
         };
 

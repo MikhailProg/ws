@@ -7,15 +7,18 @@
 
     ws.onopen = function() {
         console.log('ws onopen');
+        output.innerText = '';
         ws.onmessage = function(ev) {
+            //for (var i = 0; i < ev.data.length; i++)
+            //    console.log(ev.data.charCodeAt(i) + ' ' + ev.data[i]);
             output.innerText += ev.data;
         };
 
         ws.onclose = function(ev) {
-            var msg = '[Service is unavailable: ' + ev.code + 
+            var msg = '\n\n[Service is unavailable: ' + ev.code + 
                                   (ev.reason ? ', ' + ev.reason + ']' : ']'); 
             console.log('ws onopen');
-            output.innerText = msg;
+            output.innerText += msg;
         };
 
         submit.addEventListener('submit',

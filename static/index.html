@@ -12,10 +12,21 @@
         #container {
             background: #fff;
             margin: 0 auto;
-            padding: 5px;
+            padding: 0px 5px 0px 5px;
             position: relative;
             min-height: 100%;
             width: 1000px;
+        }
+        #output {
+            font-family: monospace;
+            font-size: 10pt;
+        }
+        pre {
+            white-space: pre-wrap;       /* Since CSS 2.1 */
+            white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+            white-space: -pre-wrap;      /* Opera 4-6 */
+            white-space: -o-pre-wrap;    /* Opera 7 */
+            word-wrap: break-word;       /* Internet Explorer 5.5+ */
         }
         </style>
     </head>
@@ -26,7 +37,7 @@
                 <button type="submit">Send</button>
             </form>
             <br>
-            <div id="output" style="word-wrap:break-word"/>
+            <pre id="output"/>
             <script src="wscat.js"></script>
         </div>
     </body>

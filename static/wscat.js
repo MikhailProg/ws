@@ -9,11 +9,15 @@
         console.log('ws onopen');
         output.innerText = '';
 
+        function outputScrollDown() {
+            output.scrollTop = output.scrollHeight;
+        }
+
         ws.onmessage = function(ev) {
             //for (var i = 0; i < ev.data.length; i++)
             //    console.log(ev.data.charCodeAt(i) + ' ' + ev.data[i]);
             output.innerText += ev.data;
-            output.scrollTop = output.scrollHeight;
+            outputScrollDown();
         };
 
         ws.onclose = function(ev) {
@@ -21,6 +25,7 @@
                                   (ev.reason ? ', ' + ev.reason + ']' : ']'); 
             console.log('ws onclose');
             output.innerText += msg;
+            outputScrollDown();
         };
 
         submit.addEventListener('submit',
@@ -34,5 +39,6 @@
 
     ws.onerror = function(ev) {
         output.innerText = 'WebSocket is not connected';
+        outputScrollDown();
     };
 })();

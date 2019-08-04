@@ -1,21 +1,29 @@
 CFLAGS  := -pipe -Wall -Wextra -Wno-type-limits
 ARFLAGS := rv
-TARGETS := wscat
+OS      := $(shell uname -s)
+TARGET  := wscat
 
-.PHONY: clean
+.PHONY: all clean
+
+ifdef M32
+  CFLAGS  += -m32
+  LDFLAGS += -m32
+endif
 
 ifdef DEBUG
   CFLAGS += -O0 -g
 else
   CFLAGS += -O2 -DNDEBUG
-  LDFLAGS += -s
+  ifneq "$(OS)" "Darwin"
+    LDFLAGS += -s
+  endif
 endif
 
 ifdef IOFUZZ
   CFLAGS += -DIOFUZZ
 endif
 
-all: $(TARGETS)
+all: $(TARGET)
 
 inet.o: inet.c inet.h
 libinet.a: libinet.a(inet.o)
@@ -31,5 +39,5 @@ wscat: LDLIBS  += -linet -lws
 wscat: LDFLAGS += -L.
 
 clean:
-	rm -f $(TARGETS) *.a *.o
+	rm -f $(TARGET) *.a *.o
 

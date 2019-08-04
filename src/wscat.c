@@ -17,6 +17,7 @@
 #include "inet.h"
 #include "ws.h"
 
+#define DEFAULT_URI	"/cat"
 #define PING_TIMEOUT	3
 #define CLOSE_TIMEOUT	5
 #define EV_IN(e)	((e) & (POLLIN | POLLHUP))
@@ -463,8 +464,8 @@ static void usage(void)
 		"\nusage: [WS_SRV=] [WS_URI=/uri] %s dest port\n\n"
 		"    WS_SRV and WS_URI are environment variables:\n"
 		"    * WS_SRV starts the program as a server.\n"
-		"    * WS_URI sets ws://dest:port/URI, default is '/cat'.\n"
-		"\n", __progname);
+		"    * WS_URI sets ws://dest:port/URI, default is '%s'.\n"
+		"\n", __progname, DEFAULT_URI);
 	exit(EXIT_FAILURE);
 }
 
@@ -483,7 +484,7 @@ int main(int argc, char *argv[])
 	if (argc > 3)
 		g_argv = argv + 3;
 
-	g_uri = (uri = getenv("WS_URI")) ? uri : "/cat";
+	g_uri = (uri = getenv("WS_URI")) ? uri : DEFAULT_URI;
 
 	if (fd_nonblock(STDIN_FILENO) < 0)
 		ERR("fd_nonblock() failed");

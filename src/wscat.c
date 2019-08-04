@@ -126,7 +126,7 @@ static void siginit(void)
 	struct sigaction sa;
 	int i;
 	int sigs[] = {
-		SIGALRM, SIGTERM, SIGINT
+		SIGALRM, SIGTERM, SIGINT, SIGHUP
 	};
 
 	if (pipe(sigpipe) < 0)

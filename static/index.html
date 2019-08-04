@@ -18,8 +18,14 @@
             width: 1000px;
         }
         #output {
+            background: #202020;
+            color: #aaa;
             font-family: monospace;
             font-size: 10pt;
+            height: 25em;
+            line-height: 1em;
+            overflow: auto;
+            border: 1px solid black;
         }
         pre {
             white-space: pre-wrap;       /* Since CSS 2.1 */
@@ -33,10 +39,9 @@
     <body>
         <div id="container">
             <form id="submit" autocomplete="off">
-                <input type="text" id="message">
+                <input type="text" id="message" autofocus>
                 <button type="submit">Send</button>
             </form>
-            <br>
             <pre id="output"/>
             <script src="wscat.js"></script>
         </div>

@@ -12,6 +12,7 @@
             //for (var i = 0; i < ev.data.length; i++)
             //    console.log(ev.data.charCodeAt(i) + ' ' + ev.data[i]);
             output.innerText += ev.data;
+            output.scrollTop = output.scrollHeight;
         };
 
         ws.onclose = function(ev) {

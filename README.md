@@ -29,8 +29,9 @@ usage: [WS_SRV=] [WS_URI=/uri] wscat dest port
     * WS_SRV starts the program as a server.
     * WS_URI sets ws://dest:port/URI, default is '/cat'.
 
-Run a raw chat (wscats standard [in|out]puts are connected with each other).
 ```
+
+Run a raw chat (wscats standard [in|out]puts are connected with each other).
 
 Run the server in one terminal:
 

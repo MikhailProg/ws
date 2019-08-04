@@ -365,20 +365,19 @@ static void wscat(struct loop_ctx *ctx)
 			ERR("poll()");
 
 		if (EV_IN(fds[0].revents)) {
-			if (sig_hnd(ctx) < 0)
+			if (sig_hnd(ctx) < 0) {
 				ctx->in = fds[1].fd = -1;
+				fds[1].revents = 0;
+			}
 		}
 
 		/* fd -> ws */
-		if (ctx->in != -1) {
-			if (EV_ERR(fds[1].revents)) {
-				half_close(ctx);
+		if (EV_ERR(fds[1].revents)) {
+			half_close(ctx);
+			ctx->in = fds[1].fd = -1;
+		} else if (EV_IN(fds[1].revents)) {
+			if (coproc_hnd(ctx, utf8, &off, sizeof(utf8)) < 0)
 				ctx->in = fds[1].fd = -1;
-			} else if (EV_IN(fds[1].revents)) {
-				if (coproc_hnd(ctx, utf8, &off,
-							sizeof(utf8)) < 0)
-					ctx->in = fds[1].fd = -1;
-			}
 		}
 
 		/* ws -> fd */

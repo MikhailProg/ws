@@ -18,6 +18,7 @@ $ make -C src IOFUZZ=1
 
 wscat links the local standard [in|out]puts with the remote side via a network socket. The program works as a WebSocket client or as a WebSocket server.
 
+There is also a web wscat which works as a client.
 
 ```
 $ ./src/wscat
@@ -28,33 +29,40 @@ usage: [WS_SRV=] [WS_URI=/uri] wscat dest port
     * WS_SRV starts the program as a server.
     * WS_URI sets ws://dest:port/URI, default is '/cat'.
 
-```
+Run a raw chat (wscats standard [in|out]puts are connected with each other).
 
-Run wscat as a server in one terminal:
+Run the server in one terminal:
 
 ```
 $ WS_SRV= ./wscat localhost 1234
 ```
 
-Run wscat as a client in another terminal:
+Run the client in another terminal:
 
 ```
 $ ./wscat localhost 1234
 ```
 
-A raw chat is opened (wscats standard [in|out]puts are connected with each other).
+Run the server as an echo server:
 
-Run a remote shell:
+```
+$ mkfifo /tmp/io && cat </tmp/io | WS_SRV= ./wscat localhost 1234 >/tmp/io; rm -f /tmp/io
+```
+
+Or run the server as a remote shell:
 
 ```
 $ mkfifo /tmp/io && bash -i 2>&1 </tmp/io | WS_SRV= ./wscat localhost 1234 >/tmp/io; rm -f /tmp/io
 ```
 
-Connect to the remote shell:
+Connect to the echo or remote shell from the other terminal:
 
 ```
 $ ./wscat localhost 1234
+
 ```
+
+Or open file:///path/to/ws/static/index.html in a browser and use an input field.
 
 
 To change WebSocket bind point set WS_URI variable.

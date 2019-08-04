@@ -22,7 +22,6 @@ There is also a web wscat which works as a client.
 
 ```
 $ ./src/wscat
-```
 
 usage: [WS_SRV=] [WS_URI=/uri] wscat dest port
 
@@ -31,6 +30,7 @@ usage: [WS_SRV=] [WS_URI=/uri] wscat dest port
     * WS_URI sets ws://dest:port/URI, default is '/cat'.
 
 Run a raw chat (wscats standard [in|out]puts are connected with each other).
+```
 
 Run the server in one terminal:
 

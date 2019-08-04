@@ -22,6 +22,7 @@ There is also a web wscat which works as a client.
 
 ```
 $ ./src/wscat
+```
 
 usage: [WS_SRV=] [WS_URI=/uri] wscat dest port
 

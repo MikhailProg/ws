@@ -345,7 +345,7 @@ static void wscat(struct loop_ctx *ctx)
 	size_t off = 0;
 	ssize_t rc;
 
-	/* Set some extra HTTP headers */
+	/* Set some extra HTTP headers. */
 	snprintf(uhdrs, sizeof(uhdrs),  "Header1: Value1\r\n"
 					"Header2: Value2\r\n");
 	while ((rc = ws_handshake(ctx->ws, ctx->host, ctx->uri, uhdrs)))
@@ -353,7 +353,7 @@ static void wscat(struct loop_ctx *ctx)
 			wait_event(ctx->net, rc == WS_E_WANT_READ);
 		else
 			ERRX("ws_handshake(): failed -0x%zX", -rc);
-
+	//poll(NULL, 0, 100);
 	fds[0].fd = ctx->sig;
 	fds[0].events = POLLIN;
 	fds[1].fd = ctx->in;

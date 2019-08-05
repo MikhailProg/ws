@@ -284,6 +284,17 @@ static int http_msg_collect(WebSocket *ws)
 	return 0;
 }
 
+static void trim(char *p)
+{
+	size_t n = strlen(p);
+
+	if (!n)
+		return;
+
+	while (isspace(p[n-1]))
+		p[--n] = 0;
+}
+
 static int
 http_msg_hdr(char **cur, void *opaque,
 	     int (*on_hdr)(const char *name, const char *value,
@@ -300,6 +311,7 @@ http_msg_hdr(char **cur, void *opaque,
 
 		*p++ = 0;
 		value = skip_space(p);
+		trim(value);
 		p = q + 2;
 		if (on_hdr && (rc = on_hdr(name, value, opaque)) < 0)
 			return WS_E_HTTP_HDR;
@@ -358,8 +370,6 @@ static int on_req_hdr(const char *name, const char *value, void *opaque)
 {
 	struct ws_hand *hand = opaque;
 	int rc = WS_E_HTTP_HDR;
-
-	fprintf(stderr, "|%s|%s|\n", name, value);
 
 	if (STREQI(name, "Host")) {
 		if (hand->hdrs & HDR_HOST)

@@ -289,10 +289,7 @@ static void trim(char *p)
 {
 	size_t n = strlen(p);
 
-	if (!n)
-		return;
-
-	while (isspace(p[n-1]))
+	while (n > 0 && isspace(p[n-1]))
 		p[--n] = 0;
 }
 

@@ -19,7 +19,6 @@ struct WebSocket {
 	unsigned char	ctrlsz;
 	uint16_t	ecode;
 	char		*sec;
-	char		*uri;
 	int		h_state;
 
 	int		i_state;
@@ -43,26 +42,26 @@ struct WebSocket {
 	size_t		o_lenall;
 };
 
-int ws_init(WebSocket *ws, const char *uri, int srv);
+int ws_init(WebSocket *ws, int srv);
 void ws_deinit(WebSocket *ws);
 
 ssize_t ws_txt_write(WebSocket *ws, const void *buf, size_t n);
 ssize_t ws_bin_write(WebSocket *ws, const void *buf, size_t n);
 
 int ws_read(WebSocket *ws, void *buf, size_t n, int *txt);
+int ws_parse(WebSocket *ws, void *opaque,
+	     void (*hnd)(void *opaque, const void *buf, size_t n, int txt));
 
 int ws_ping(WebSocket *ws, const void *buf, size_t n);
 int ws_pong(WebSocket *ws, const void *buf, size_t n);
 int ws_close(WebSocket *ws, uint16_t ecode, const void *buf, size_t n);
 
-int ws_handshake(WebSocket *ws);
+int ws_handshake(WebSocket *ws, const char *host,
+				const char *uri, const char *uhdrs);
 
 void ws_set_bio(WebSocket *ws, void *opaque,
 		 ssize_t (*send)(void *ctx, const void *buf, size_t n),
 		 ssize_t (*recv)(void *ctx, void *buf, size_t n));
-
-int ws_parse(WebSocket *ws, void *opaque,
-	     void (*hnd)(void *opaque, const void *buf, size_t n, int txt));
 
 #define WS_E_FAULT_FRAME	-0x1000
 #define WS_E_BAD_LEN		-0x1001
@@ -84,5 +83,6 @@ int ws_parse(WebSocket *ws, void *opaque,
 #define WS_E_UNEXPECTED_MASK	-0x1011
 #define WS_E_TOO_LONG		-0x1012
 #define WS_E_UTF8_INCOPMLETE	-0x1013
+#define WS_E_HTTP_REQ_URI	-0x1014
 
 #endif /* WS_H */

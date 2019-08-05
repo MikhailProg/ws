@@ -26,10 +26,11 @@
 
 #define GUID			"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
-#define HDR_UPGRADE		0x01
-#define HDR_SEC_KEY		0x02
-#define HDR_SEC_ACCEPT		0x04
-#define HDR_REQ_ALL		(HDR_UPGRADE | HDR_SEC_KEY)
+#define HDR_HOST		0x01
+#define HDR_UPGRADE		0x02
+#define HDR_SEC_KEY		0x04
+#define HDR_SEC_ACCEPT		0x08
+#define HDR_REQ_ALL		(HDR_HOST | HDR_UPGRADE | HDR_SEC_KEY)
 #define HDR_RES_ALL		(HDR_UPGRADE | HDR_SEC_ACCEPT)
 
 #define STREQI(s1, s2)		(strcasecmp(s1, s2) == 0)
@@ -68,7 +69,6 @@ enum {
 };
 
 enum {
-	STATE_O_INIT,
 	STATE_O_HDR,
 	STATE_O_PAYLOAD,
 	STATE_O_DRAIN
@@ -92,7 +92,8 @@ union ws_arg {
 };
 
 struct ws_hand {
-	char		*uri;
+	const char	*uri;
+	const char	*host;
 	unsigned int	hdrs;
 	char		*sec;
 };
@@ -159,7 +160,7 @@ static int http_res_line(char **cur, int *ver, int *code, char **reason)
 	if (*p != '0' && *p != '1')
 		return -1;
 	*ver = *p++ == '0' ? 0 : 1;
-	
+
 	if (*p != ' ')
 		return -1;
 
@@ -185,7 +186,8 @@ static int http_res_line(char **cur, int *ver, int *code, char **reason)
 	return 0;
 }
 
-static ssize_t http_msg(WebSocket *ws, const struct http_hdr *hdrs, int nhdrs)
+static ssize_t http_msg(WebSocket *ws, const struct http_hdr *hdrs,
+				int nhdrs, const char *uhdrs)
 {
 	int rc, i;
 
@@ -195,14 +197,20 @@ static ssize_t http_msg(WebSocket *ws, const struct http_hdr *hdrs, int nhdrs)
 				hdrs[i].name, hdrs[i].value);
 		if (rc < 0 || rc >= (int)WS_O_BUF_LEN(ws))
 			return -1;
+		ws->o_off += rc;
+	}
 
+	if (uhdrs) {
+		rc = snprintf((char *)WS_O_BUF(ws), WS_O_BUF_LEN(ws),
+					"%s", uhdrs);
+		if (rc < 0 || rc >= (int)WS_O_BUF_LEN(ws))
+			return -1;
 		ws->o_off += rc;
 	}
 
 	rc = snprintf((char *)WS_O_BUF(ws), WS_O_BUF_LEN(ws), CRLF);
 	if (rc < 0 || rc >= (int)WS_O_BUF_LEN(ws))
 		return -1;
-
 	ws->o_off += rc;
 
 	return 0;
@@ -210,7 +218,7 @@ static ssize_t http_msg(WebSocket *ws, const struct http_hdr *hdrs, int nhdrs)
 
 static ssize_t
 http_msg_res(WebSocket *ws, int status, int ver,
-		const struct http_hdr *hdrs, int nhdrs)
+		const struct http_hdr *hdrs, int nhdrs, const char *uhdrs)
 {
 	int rc;
 
@@ -227,12 +235,12 @@ http_msg_res(WebSocket *ws, int status, int ver,
 
 	ws->o_off += rc;
 
-	return http_msg(ws, hdrs, nhdrs);
+	return http_msg(ws, hdrs, nhdrs, uhdrs);
 }
 
 static ssize_t
 http_msg_req(WebSocket *ws, const char *method, const char *path, int ver,
-			    const struct http_hdr *hdrs, int nhdrs)
+		const struct http_hdr *hdrs, int nhdrs, const char *uhdrs)
 {
 	int rc;
 
@@ -245,7 +253,7 @@ http_msg_req(WebSocket *ws, const char *method, const char *path, int ver,
 
 	ws->o_off += rc;
 
-	return http_msg(ws, hdrs, nhdrs);
+	return http_msg(ws, hdrs, nhdrs, uhdrs);
 }
 
 static int http_msg_collect(WebSocket *ws)
@@ -301,64 +309,6 @@ http_msg_hdr(char **cur, void *opaque,
 	return 0;
 }
 
-static int on_req(const char *method, const char *uri, int ver, void *opaque)
-{
-	struct ws_hand *ws = opaque;
-
-	if (!STREQI(method, "GET") || ver != 1)
-		return -1;
-
-	ws->uri = strdup(uri);
-	if (ws->uri == NULL)
-		return -1;
-
-	return 0;
-}
-
-static int on_req_hdr(const char *name, const char *value, void *opaque)
-{
-	struct ws_hand *hand = opaque;
-
-	if (STREQI(name, "Upgrade")) {
-		if (!STREQI(value, "websocket"))
-			return -1;
-		hand->hdrs |= HDR_UPGRADE;
-	} else if (STREQI(name, "Sec-WebSocket-Key") && !hand->sec) {
-		hand->sec = strdup(value);
-		if (hand->sec == NULL)
-			return -1;
-		hand->hdrs |= HDR_SEC_KEY;
-	} else if (STREQI(name, "Sec-WebSocket-Version")) {
-		if (!STREQ(value, "13"))
-			return -1;
-	}
-
-	return 0;
-}
-
-static int
-http_req(WebSocket *ws, void *opaque,
-	 int (*on_req)(const char *, const char *, int, void *),
-	 int (*on_hdr)(const char *, const char *, void *))
-{
-	char *p, *uri, *method;
-	int rc, ver;
-
-	p = (char *)ws->i_buf;
-
-	if (http_req_line(&p, &method, &uri, &ver) < 0)
-		return WS_E_HTTP_REQ_LINE;
-
-	if (on_req && (rc = on_req(method, uri, ver, opaque)) < 0)
-		return WS_E_HTTP_REQ_LINE;
-
-	rc = http_msg_hdr(&p, opaque, on_hdr);
-	if (rc < 0)
-		return rc;
-
-	return 0;
-}
-
 static int sec_accept_calc(const char *key, char *buf, size_t n)
 {
 	unsigned char sha1[20];
@@ -392,30 +342,99 @@ static int sec_accept_check(const char *accept, const char *key)
 	return 0;
 }
 
-static int srv_req(WebSocket *ws)
+static int on_req(const char *method, const char *uri, int ver, void *opaque)
+{
+	struct ws_hand *hand = opaque;
+
+	if (!STREQI(method, "GET") || ver != 1)
+		return WS_E_HTTP_REQ_LINE;
+	if (!STREQI(hand->uri, uri))
+		return WS_E_HTTP_REQ_URI;
+
+	return 0;
+}
+
+static int on_req_hdr(const char *name, const char *value, void *opaque)
+{
+	struct ws_hand *hand = opaque;
+	int rc = WS_E_HTTP_HDR;
+
+	fprintf(stderr, "|%s|%s|\n", name, value);
+
+	if (STREQI(name, "Host")) {
+		if (hand->hdrs & HDR_HOST)
+			return rc;
+		if (!STREQI(value, hand->host))
+			return rc;
+		hand->hdrs |= HDR_HOST;
+	} else if (STREQI(name, "Upgrade")) {
+		if (!STREQI(value, "websocket"))
+			return rc;
+		hand->hdrs |= HDR_UPGRADE;
+	} else if (STREQI(name, "Sec-WebSocket-Key")) {
+		if (hand->hdrs & HDR_SEC_KEY)
+			return rc;
+		hand->sec = strdup(value);
+		if (hand->sec == NULL)
+			return rc;
+		hand->hdrs |= HDR_SEC_KEY;
+	} else if (STREQI(name, "Sec-WebSocket-Version")) {
+		if (!STREQ(value, "13"))
+			return rc;
+	}
+
+	return 0;
+}
+
+static int
+http_req(WebSocket *ws, void *opaque,
+	 int (*on_req)(const char *, const char *, int, void *),
+	 int (*on_hdr)(const char *, const char *, void *))
+{
+	char *p, *uri, *method;
+	int rc, ver;
+
+	p = (char *)ws->i_buf;
+
+	rc = http_req_line(&p, &method, &uri, &ver);
+	if (rc < 0)
+		return WS_E_HTTP_REQ_LINE;
+
+	rc = on_req(method, uri, ver, opaque);
+	if (rc < 0)
+		return rc;
+
+	rc = http_msg_hdr(&p, opaque, on_hdr);
+	if (rc < 0)
+		return rc;
+
+	return 0;
+}
+
+static int
+srv_req(WebSocket *ws, const char *host, const char *uri, const char *uhdrs)
 {
 	struct ws_hand hand;
 	char buf[1024];
 	int rc, status;
 	struct http_hdr hdrs[] = {
-		{ "Upgrade",		 "websocket" },
 		{ "Connection",		 "keep-alive, Upgrade" },
+		{ "Upgrade",		 "websocket" },
 		{ "Sec-WebSocket-Accept", buf }
 	};
 
 	memset(&hand, 0, sizeof(hand));
 
+	hand.host = host;
+	hand.uri  = uri;
+
 	rc = http_req(ws, &hand, on_req, on_req_hdr);
 	if (rc < 0 || (rc == 0 && hand.hdrs != HDR_REQ_ALL)) {
 		status = HTTP_BAD;
-		if (!rc)	
+		if (rc == WS_E_HTTP_REQ_URI)
+			status = HTTP_NFOUND;
+		else if (!rc)
 			rc = WS_E_HANDSHAKE;
-		goto out;
-	}
-
-	if (!STREQI(hand.uri, ws->uri)) {
-		status = HTTP_NFOUND;
-		rc = WS_E_HANDSHAKE;
 		goto out;
 	}
 
@@ -427,12 +446,11 @@ static int srv_req(WebSocket *ws)
 		rc = WS_E_HANDSHAKE;
 	}
 out:
-	free(hand.uri);
 	free(hand.sec);
 
 	if (http_msg_res(ws, status, 1,
 			status == HTTP_SW ? hdrs : NULL,
-			status == HTTP_SW ? ARRSZ(hdrs) : 0) < 0)
+			status == HTTP_SW ? ARRSZ(hdrs) : 0, uhdrs) < 0)
 		return WS_E_HANDSHAKE;
 
 	ws->err = rc;
@@ -443,21 +461,23 @@ static int on_res(int ver, int code, const char *reason, void *opaque)
 {
 	(void)opaque;
 	(void)reason;
-	return (ver != 1 || code != 101) ? -1 : 0;
+	return (ver != 1 || code != 101) ? WS_E_HTTP_RES_LINE : 0;
 }
 
 static int on_res_hdr(const char *name, const char *value, void *opaque)
 {
 	struct ws_hand *hand = opaque;
+	int rc = WS_E_HTTP_RES_LINE;
 
 	if (STREQI(name, "Upgrade")) {
 		if (!STREQI(value, "websocket"))
-			return -1;
+			return rc;
 		hand->hdrs |= HDR_UPGRADE;
-	} else if (STREQI(name, "Sec-WebSocket-Accept") && !hand->sec) {
-		hand->sec = strdup(value);
-		if (hand->sec == NULL)
-			return -1;
+	} else if (STREQI(name, "Sec-WebSocket-Accept")) {
+		if (hand->hdrs & HDR_SEC_ACCEPT)
+			return rc;
+		if (sec_accept_check(value, hand->sec) < 0)
+			return rc;
 		hand->hdrs |= HDR_SEC_ACCEPT;
 	}
 
@@ -474,11 +494,13 @@ http_res(WebSocket *ws, void *opaque,
 
 	p = (char *)ws->i_buf;
 
-	if (http_res_line(&p, &ver, &code, &reason) < 0)
+	rc = http_res_line(&p, &ver, &code, &reason);
+	if (rc < 0)
 		return WS_E_HTTP_RES_LINE;
 
-	if (on_res && (rc = on_res(ver, code, reason, opaque)) < 0)
-		return WS_E_HTTP_RES_LINE;
+	rc = on_res(ver, code, reason, opaque);
+	if (rc < 0)
+		return rc;
 
 	rc = http_msg_hdr(&p, opaque, on_hdr);
 	if (rc < 0)
@@ -493,18 +515,17 @@ static int usr_res(WebSocket *ws)
 	int rc;
 
 	memset(&hand, 0, sizeof(hand));
+	hand.sec = ws->sec;
 
 	rc = http_res(ws, &hand, on_res, on_res_hdr);
-	if (rc == 0 && (hand.hdrs != HDR_RES_ALL ||
-			sec_accept_check(hand.sec, ws->sec) < 0))
+	if (rc == 0 && hand.hdrs != HDR_RES_ALL)
 		rc = WS_E_HANDSHAKE;
-
-	free(hand.sec);
 
 	return rc;
 }
 
-static int srv_handshake(WebSocket *ws)
+static int srv_handshake(WebSocket *ws, const char *host,
+					const char *uri, const char *uhdrs)
 {
 	int rc = 0, q = 0;
 	ssize_t n;
@@ -521,7 +542,7 @@ static int srv_handshake(WebSocket *ws)
 			ws->h_state = STATE_H_REQ;
 			/* THROUGH */
 		case STATE_H_REQ:
-			rc = srv_req(ws);
+			rc = srv_req(ws, host, uri, uhdrs);
 			if (rc < 0)
 				return rc;
 			ws->h_state = STATE_H_MSG_WR;
@@ -548,30 +569,24 @@ static int srv_handshake(WebSocket *ws)
 	return rc;
 }
 
-static int usr_handshake(WebSocket *ws)
+static int usr_handshake(WebSocket *ws, const char *host,
+					const char *uri, const char *uhdrs)
 {
-	int rc = 0, q = 0, i;
-	unsigned char buf[1024], blah[32];
-	size_t olen;
+	int rc = 0, q = 0;
 	ssize_t n;
 	struct http_hdr hdrs[] = {
-		{ "Upgrade",		   "websocket" },
+		{ "Host",		   host },
 		{ "Connection",		   "keep-alive, Upgrade" },
-		{ "Sec-WebSocket-Key",	   (char *)buf },
+		{ "Upgrade",		   "websocket" },
+		{ "Sec-WebSocket-Key",	   ws->sec },
 		{ "Sec-WebSocket-Version", "13" }
 	};
 
 	while (!q) {
 		switch (ws->h_state) {
 		case STATE_H_INIT:
-			for (i = 0; i < (int)ARRSZ(blah); i++)
-				blah[i] = rand() % 256;
-			if (base64encode(buf, sizeof(buf), &olen,
-					 blah, ARRSZ(blah)) < 0 ||
-			    (ws->sec = strdup((char *)buf)) == NULL)
-				return WS_E_HANDSHAKE;
-			rc = http_msg_req(ws, "GET", ws->uri, 1,
-						hdrs, ARRSZ(hdrs));
+			rc = http_msg_req(ws, "GET", uri, 1,
+						hdrs, ARRSZ(hdrs), uhdrs);
 			if (rc < 0)
 				return WS_E_HANDSHAKE;
 			ws->h_state = STATE_H_MSG_WR;
@@ -609,9 +624,10 @@ static int usr_handshake(WebSocket *ws)
 	return rc;
 }
 
-int ws_handshake(WebSocket *ws)
+int ws_handshake(WebSocket *ws, const char *host,
+				const char *uri, const char *uhdrs)
 {
-	return ws->srv ? srv_handshake(ws) : usr_handshake(ws);
+	return (ws->srv ? srv_handshake : usr_handshake)(ws, host, uri, uhdrs);
 }
 
 static uint16_t get_u16(uint8_t *p)
@@ -629,7 +645,7 @@ static uint64_t get_u64(uint8_t *p)
 static void put_u16(uint8_t *p, uint16_t n)
 {
 	p[0] = (n >> 8) & 0xFF;
-	p[1] = n        & 0xFF;
+	p[1] =  n       & 0xFF;
 }
 
 static void put_u64(uint8_t *p, uint64_t n)
@@ -641,12 +657,12 @@ static void put_u64(uint8_t *p, uint64_t n)
 	p[4] = (n >> 24) & 0xFF;
 	p[5] = (n >> 16) & 0xFF;
 	p[6] = (n >>  8) & 0xFF;
-	p[7] = n         & 0xFF;
+	p[7] =  n        & 0xFF;
 }
 
 static int check_op(unsigned char op)
 {
-	/* mask control bit. */
+	/* drop control bit. */
 	return (op & 0x07) < 3;
 }
 
@@ -669,28 +685,41 @@ static ssize_t recvn(WebSocket *ws, size_t n)
 	return rc;
 }
 
-int ws_init(WebSocket *ws, const char *uri, int srv)
+int ws_init(WebSocket *ws, int srv)
 {
-	size_t n = strlen(uri) + 1;
+	unsigned char blah[32], buf[64];
 	unsigned char *p;
+	size_t olen = 0;
+	int i;
 
-	p = calloc(1, WS_BUF_SIZE * 2 + n);
+	if (!srv) {
+		for (i = 0; i < (int)ARRSZ(blah); i++)
+			blah[i] = rand() % 256;
+		if (base64encode(buf, sizeof(buf), &olen,
+						blah, ARRSZ(blah)) < 0)
+			return -1;
+		++olen;
+	}
+
+	p = calloc(1, 2 * WS_BUF_SIZE + olen);
 	if (!p)
 		return -1;
 
 	memset(ws, 0, sizeof(*ws));
 	ws->srv   = srv;
 	ws->i_buf = p;
-	ws->o_buf = p + WS_BUF_SIZE; 
-	ws->uri   = (char *)p + WS_BUF_SIZE * 2;
-	strcpy(ws->uri, uri);
+	ws->o_buf = p + WS_BUF_SIZE;
+
+	if (!srv) {
+		ws->sec = (char *)p + WS_BUF_SIZE * 2;
+		strcpy(ws->sec, (char *)buf);
+	}
 
 	return 0;
 }
 
 void ws_deinit(WebSocket *ws)
 {
-	free(ws->sec);
 	free(ws->i_buf);
 }
 
@@ -790,7 +819,7 @@ ws_write(WebSocket *ws, unsigned char op, const void *buf, size_t n)
 
 	while (!q) {
 		switch (ws->o_state) {
-		case STATE_O_INIT:
+		case STATE_O_HDR:
 			p = ws->o_buf;
 
 			len = (n < 126) ? n : (n < 0x10000) ? 126 : 127;
@@ -849,7 +878,7 @@ ws_write(WebSocket *ws, unsigned char op, const void *buf, size_t n)
 				ws->o_state = STATE_O_PAYLOAD;
 				ws->o_off = 0;
 			} else {
-				ws->o_state = STATE_O_INIT;
+				ws->o_state = STATE_O_HDR;
 				q = 1;
 			}
 			break;

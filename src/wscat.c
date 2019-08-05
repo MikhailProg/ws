@@ -27,8 +27,6 @@ static int	sigpipe[2];
 static int	signals[NSIG];
 static char	ping_buf[32];
 static int	pong_wait;
-static char	**g_argv;
-static char	*g_uri;
 
 struct loop_ctx {
 	WebSocket	*ws;
@@ -36,6 +34,8 @@ struct loop_ctx {
 	int		out;
 	int		net;
 	int		sig;
+	const char	*host;
+	const char	*uri;
 };
 
 static int fd_nonblock(int fd)
@@ -297,7 +297,7 @@ static void ws_ctrl(const struct loop_ctx *ctx, int e)
 	}
 }
 
-static void 
+static void
 drain(void *opaque, const void *buf, size_t n, int txt)
 {
 	struct loop_ctx *ctx = opaque;
@@ -341,10 +341,14 @@ static void wscat(struct loop_ctx *ctx)
 {
 	struct pollfd fds[3];
 	unsigned char utf8[16536];
+	char uhdrs[128];
 	size_t off = 0;
 	ssize_t rc;
 
-	while ((rc = ws_handshake(ctx->ws)))
+	/* Set some extra HTTP headers */
+	snprintf(uhdrs, sizeof(uhdrs),  "Header1: Value1\r\n"
+					"Header2: Value2\r\n");
+	while ((rc = ws_handshake(ctx->ws, ctx->host, ctx->uri, uhdrs)))
 		if (rc == WS_E_WANT_READ || rc == WS_E_WANT_WRITE)
 			wait_event(ctx->net, rc == WS_E_WANT_READ);
 		else
@@ -389,21 +393,24 @@ static void wscat(struct loop_ctx *ctx)
 	}
 }
 
-static void wscat_run(WebSocket *ws, int fd)
+static void wscat_run(WebSocket *ws, int fd, const char *host, const char *uri)
 {
 	struct loop_ctx ctx;
 
 	ws_set_bio(ws, &fd, socksend, sockrecv);
 	siginit();
-	ctx.ws  = ws;
-	ctx.in  = STDIN_FILENO;
-	ctx.out = STDOUT_FILENO;
-	ctx.net = fd;
-	ctx.sig = sigpipe[0];
+	ctx.ws   = ws;
+	ctx.in   = STDIN_FILENO;
+	ctx.out  = STDOUT_FILENO;
+	ctx.net  = fd;
+	ctx.sig  = sigpipe[0];
+	ctx.host = host;
+	ctx.uri  = uri;
 	wscat(&ctx);
 }
 
-static void srv(const char *addr, const char *port)
+static void srv(const char *addr, const char *port,
+		const char *host, const char *uri)
 {
 	struct sockaddr_storage ss;
 	socklen_t slen;
@@ -425,11 +432,11 @@ static void srv(const char *addr, const char *port)
 		if (fd_nonblock(afd) < 0)
 			ERR("fd_nonblock() failed");
 
-		if (ws_init(&ws, g_uri, 1) < 0)
+		if (ws_init(&ws, 1) < 0)
 			ERRX("ws_init() failed");
 
 		close(fd);
-		wscat_run(&ws, afd);
+		wscat_run(&ws, afd, host, uri);
 
 		ws_deinit(&ws);
 		close(afd);
@@ -437,7 +444,8 @@ static void srv(const char *addr, const char *port)
 	}
 }
 
-static void usr(const char *addr, const char *port)
+static void usr(const char *addr, const char *port,
+		const char *host, const char *uri)
 {
 	WebSocket ws;
 	int fd;
@@ -448,10 +456,10 @@ static void usr(const char *addr, const char *port)
 	if (fd_nonblock(fd) < 0)
 		ERR("fd_nonblock() failed");
 
-	if (ws_init(&ws, g_uri, 0) < 0)
+	if (ws_init(&ws, 0) < 0)
 		ERRX("ws_init() failed");
 
-	wscat_run(&ws, fd);
+	wscat_run(&ws, fd, host, uri);
 
 	ws_deinit(&ws);
 	close(fd);
@@ -471,7 +479,9 @@ static void usage(void)
 
 int main(int argc, char *argv[])
 {
+	char host[1024];
 	char *addr, *port, *uri;
+	int n;
 
 	if (argc < 3)
 		usage();
@@ -481,15 +491,18 @@ int main(int argc, char *argv[])
 
 	srand(time(NULL));
 
-	if (argc > 3)
-		g_argv = argv + 3;
+	if ((n = atoi(port)) <= 0 || n > 65535)
+		usage();
 
-	g_uri = (uri = getenv("WS_URI")) ? uri : DEFAULT_URI;
+	snprintf(host, sizeof(host), "%s%s%s", addr,
+			n != 80 ? ":": "", n != 80 ? port : "");
+
+	uri = (uri = getenv("WS_URI")) ? uri : DEFAULT_URI;
 
 	if (fd_nonblock(STDIN_FILENO) < 0)
 		ERR("fd_nonblock() failed");
 
-	getenv("WS_SRV") ? srv(addr, port) : usr(addr, port);
+	(getenv("WS_SRV") ? srv : usr)(addr, port, host, uri);
 
 	return EXIT_SUCCESS;
 }

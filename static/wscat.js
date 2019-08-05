@@ -39,6 +39,5 @@
 
     ws.onerror = function(ev) {
         output.innerText = 'WebSocket is not connected';
-        outputScrollDown();
     };
 })();

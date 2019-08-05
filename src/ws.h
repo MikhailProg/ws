@@ -19,6 +19,7 @@ struct WebSocket {
 	unsigned char	ctrlsz;
 	uint16_t	ecode;
 	char		*sec;
+	size_t		limit;
 	int		h_state;
 
 	int		i_state;
@@ -62,6 +63,8 @@ int ws_handshake(WebSocket *ws, const char *host,
 void ws_set_bio(WebSocket *ws, void *opaque,
 		 ssize_t (*send)(void *ctx, const void *buf, size_t n),
 		 ssize_t (*recv)(void *ctx, void *buf, size_t n));
+
+void ws_set_data_limit(WebSocket *ws, size_t limit);
 
 #define WS_E_FAULT_FRAME	-0x1000
 #define WS_E_BAD_LEN		-0x1001

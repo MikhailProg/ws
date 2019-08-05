@@ -353,7 +353,8 @@ static void wscat(struct loop_ctx *ctx)
 			wait_event(ctx->net, rc == WS_E_WANT_READ);
 		else
 			ERRX("ws_handshake(): failed -0x%zX", -rc);
-	//poll(NULL, 0, 100);
+
+	poll(NULL, 0, 100);
 	fds[0].fd = ctx->sig;
 	fds[0].events = POLLIN;
 	fds[1].fd = ctx->in;

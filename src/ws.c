@@ -63,6 +63,7 @@ enum {
 	STATE_I_PLEN16,
 	STATE_I_PLEN64,
 	STATE_I_MASK,
+	STATE_I_PAYLOAD0,
 	STATE_I_PAYLOAD,
 	STATE_I_CTRL,
 	STATE_I_DRAIN
@@ -1018,12 +1019,12 @@ static ssize_t ws_handler(WebSocket *ws, union ws_arg *arg, int hnd)
 					ws->cont = 0;
 			}
 
-			ws->op  = op;
+			ws->op = op;
 			ws->i_len = len < 126 ? len : 0;
 			ws->i_state = len == 126 ? STATE_I_PLEN16 :
 				      len == 127 ? STATE_I_PLEN64 :
 				(ws->srv ? STATE_I_MASK :
-				  ws->i_len == 0 ? STATE_I_CTRL : STATE_I_PAYLOAD);
+				  ws->i_len == 0 ? STATE_I_CTRL : STATE_I_PAYLOAD0);
 			break;
 		case STATE_I_MASK:
 			rc = recvn(ws, 4);
@@ -1033,7 +1034,7 @@ static ssize_t ws_handler(WebSocket *ws, union ws_arg *arg, int hnd)
 			memcpy(ws->i_mskbuf, ws->i_buf, 4);
 			ws->i_imsk = 0;
 			ws->i_state = ws->i_len == 0 ?
-					STATE_I_CTRL : STATE_I_PAYLOAD;
+					STATE_I_CTRL : STATE_I_PAYLOAD0;
 			break;
 		case STATE_I_PLEN16:
 			rc = recvn(ws, 2);
@@ -1045,7 +1046,7 @@ static ssize_t ws_handler(WebSocket *ws, union ws_arg *arg, int hnd)
 				return WS_E_BAD_LEN;
 
 			ws->i_len = len;
-			ws->i_state = ws->srv ? STATE_I_MASK : STATE_I_PAYLOAD;
+			ws->i_state = ws->srv ? STATE_I_MASK : STATE_I_PAYLOAD0;
 			break;
 		case STATE_I_PLEN64:
 			rc = recvn(ws, 8);
@@ -1060,8 +1061,14 @@ static ssize_t ws_handler(WebSocket *ws, union ws_arg *arg, int hnd)
 
 			len = (size_t)m;
 			ws->i_len = len;
-			ws->i_state = ws->srv ? STATE_I_MASK : STATE_I_PAYLOAD;
+			ws->i_state = ws->srv ? STATE_I_MASK : STATE_I_PAYLOAD0;
 			break;
+		case STATE_I_PAYLOAD0:
+			assert(ws->i_len > 0);
+			if (ws->limit && ws->i_len > ws->limit)
+				return WS_E_TOO_LONG;
+			ws->i_state = STATE_I_PAYLOAD;
+			/* THROUGH */
 		case STATE_I_PAYLOAD:
 			assert(ws->i_len > 0);
 			len = ws->i_len > WS_I_BUF_LEN(ws) ?
@@ -1183,5 +1190,10 @@ int ws_parse(WebSocket *ws, void *opaque,
 	arg.h.hnd    = hnd;
 	arg.h.opaque = opaque;
 	return ws_handler(ws, &arg, 1);
+}
+
+void ws_set_data_limit(WebSocket *ws, size_t limit)
+{
+	ws->limit = limit;
 }
 

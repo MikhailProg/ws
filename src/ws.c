@@ -733,7 +733,7 @@ int ws_init(WebSocket *ws, int srv)
 void ws_deinit(WebSocket *ws)
 {
 	free(ws->i_buf);
-	memset(ws, sizeof(*ws), 0);
+	memset(ws, 0, sizeof(*ws));
 }
 
 void ws_set_bio(WebSocket *ws, void *opaque,
@@ -914,9 +914,10 @@ ssize_t ws_txt_write(WebSocket *ws, const void *buf, size_t n)
 		rc = utf8len(buf, n);
 		if (rc <= 0)
 			return rc == 0 ? WS_E_UTF8_INCOPMLETE : WS_E_NON_UTF8;
+		n = rc;
 	}
 
-	return ws_write(ws, OP_TEXT, buf, rc);
+	return ws_write(ws, OP_TEXT, buf, n);
 }
 
 ssize_t ws_bin_write(WebSocket *ws, const void *buf, size_t n)

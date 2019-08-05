@@ -717,9 +717,10 @@ int ws_init(WebSocket *ws, int srv)
 		return -1;
 
 	memset(ws, 0, sizeof(*ws));
-	ws->srv   = srv;
+	ws->srv = srv;
 	ws->i_buf = p;
 	ws->o_buf = p + WS_BUF_SIZE;
+	ws->utf8_on = 1;
 
 	if (!srv) {
 		ws->sec = (char *)p + WS_BUF_SIZE * 2;
@@ -732,6 +733,7 @@ int ws_init(WebSocket *ws, int srv)
 void ws_deinit(WebSocket *ws)
 {
 	free(ws->i_buf);
+	memset(ws, sizeof(*ws), 0);
 }
 
 void ws_set_bio(WebSocket *ws, void *opaque,
@@ -908,9 +910,11 @@ ssize_t ws_txt_write(WebSocket *ws, const void *buf, size_t n)
 	if (!n)
 		return 0;
 
-	rc = utf8len(buf, n);
-	if (rc <= 0)
-		return rc == 0 ? WS_E_UTF8_INCOPMLETE : WS_E_NON_UTF8;
+	if (ws->utf8_on) {
+		rc = utf8len(buf, n);
+		if (rc <= 0)
+			return rc == 0 ? WS_E_UTF8_INCOPMLETE : WS_E_NON_UTF8;
+	}
 
 	return ws_write(ws, OP_TEXT, buf, rc);
 }
@@ -952,9 +956,11 @@ int ws_close(WebSocket *ws, uint16_t ecode, const void *buf, size_t n)
 
 	put_u16(data, ecode);
 	if (n > 0) {
-		rc = utf8len(buf, n);
-		if (rc <= 0 || (size_t)rc != n)
-			return WS_E_NON_UTF8;
+		if (ws->utf8_on) {
+			rc = utf8len(buf, n);
+			if (rc <= 0 || (size_t)rc != n)
+				return WS_E_NON_UTF8;
+		}
 		memcpy(data + 2, buf, n);
 	}
 
@@ -1103,8 +1109,9 @@ static ssize_t ws_handler(WebSocket *ws, union ws_arg *arg, int hnd)
 				ws->i_left -= 2;
 			}
 
-			if ((ws->op == OP_CLOSE && ws->i_left > 0) ||
-			     ws->op == OP_TEXT) {
+			if (ws->utf8_on &&
+			    ((ws->op == OP_CLOSE && ws->i_left > 0) ||
+			      ws->op == OP_TEXT)) {
 				rc = utf8len(ws->i_data, ws->i_left);
 				if (rc < 0)
 					return WS_E_NON_UTF8;
@@ -1195,5 +1202,10 @@ int ws_parse(WebSocket *ws, void *opaque,
 void ws_set_data_limit(WebSocket *ws, size_t limit)
 {
 	ws->limit = limit;
+}
+
+void ws_set_check_utf8(WebSocket *ws, int v)
+{
+	ws->utf8_on = v ? 1 : 0;
 }
 

@@ -14,6 +14,7 @@ struct WebSocket {
 	unsigned char	srv;
 	unsigned char	op;
 	unsigned char	cont;
+	unsigned char	utf8_on;
 	int		err;
 	unsigned char	*ctrl;
 	unsigned char	ctrlsz;
@@ -49,6 +50,8 @@ void ws_deinit(WebSocket *ws);
 ssize_t ws_txt_write(WebSocket *ws, const void *buf, size_t n);
 ssize_t ws_bin_write(WebSocket *ws, const void *buf, size_t n);
 
+/* ws_read and ws_parse garantie to return utf8 complete
+ * data for TEXT frame. */
 int ws_read(WebSocket *ws, void *buf, size_t n, int *txt);
 int ws_parse(WebSocket *ws, void *opaque,
 	     void (*hnd)(void *opaque, const void *buf, size_t n, int txt));
@@ -65,6 +68,9 @@ void ws_set_bio(WebSocket *ws, void *opaque,
 		 ssize_t (*recv)(void *ctx, void *buf, size_t n));
 
 void ws_set_data_limit(WebSocket *ws, size_t limit);
+
+/* UTF-8 check is enabled by default. */
+void ws_set_check_utf8(WebSocket *ws, int v);
 
 #define WS_E_FAULT_FRAME	-0x1000
 #define WS_E_BAD_LEN		-0x1001

@@ -47,7 +47,10 @@ struct WebSocket {
 int ws_init(WebSocket *ws, int srv);
 void ws_deinit(WebSocket *ws);
 
+/* ws_txt_write() may send less than n if the buf contains an incomplete
+ * UTF-8 character at the buf's end. */
 ssize_t ws_txt_write(WebSocket *ws, const void *buf, size_t n);
+
 ssize_t ws_bin_write(WebSocket *ws, const void *buf, size_t n);
 
 /* ws_read and ws_parse garantie to return utf8 complete

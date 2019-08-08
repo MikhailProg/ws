@@ -263,7 +263,7 @@ static int http_msg_collect(WebSocket *ws)
 	char *p;
 
 	for (;;) {
-		n = ws->recv(ws->opaque, WS_I_BUF(ws), WS_I_BUF_LEN(ws)-1);
+		n = ws->recv(ws->ctx, WS_I_BUF(ws), WS_I_BUF_LEN(ws)-1);
 		if (n <= 0)
 			return !n ? WS_E_EOF : n;
 
@@ -559,7 +559,7 @@ static int srv_handshake(WebSocket *ws, const char *host,
 			ws->o_off = 0;
 			/* THROUGH */
 		case STATE_H_MSG_WR:
-			n = ws->send(ws->opaque, ws->o_data, ws->o_left);
+			n = ws->send(ws->ctx, ws->o_data, ws->o_left);
 			if (n < 0)
 				return n;
 			ws->o_data += n;
@@ -603,7 +603,7 @@ static int usr_handshake(WebSocket *ws, const char *host,
 			ws->o_off = 0;
 			/* THROUGH */
 		case STATE_H_MSG_WR:
-			n = ws->send(ws->opaque, ws->o_data, ws->o_left);
+			n = ws->send(ws->ctx, ws->o_data, ws->o_left);
 			if (n < 0)
 				return n;
 			ws->o_data += n;
@@ -681,7 +681,7 @@ static ssize_t recvn(WebSocket *ws, size_t n)
 	assert(ws->i_off < n);
 
 	while (ws->i_off < n) {
-		rc = ws->recv(ws->opaque, ws->i_buf + ws->i_off,
+		rc = ws->recv(ws->ctx, ws->i_buf + ws->i_off,
 						  n - ws->i_off);
 		if (rc <= 0)
 			return rc == 0 ? WS_E_EOF : rc;
@@ -733,13 +733,13 @@ void ws_deinit(WebSocket *ws)
 	memset(ws, 0, sizeof(*ws));
 }
 
-void ws_set_bio(WebSocket *ws, void *opaque,
+void ws_set_bio(WebSocket *ws, void *ctx,
 		 ssize_t (*send)(void *ctx, const void *buf, size_t n),
 		 ssize_t (*recv)(void *ctx, void *buf, size_t n))
 {
-	ws->opaque = opaque;
-	ws->send   = send;
-	ws->recv   = recv;
+	ws->ctx  = ctx;
+	ws->send = send;
+	ws->recv = recv;
 }
 
 #define EQUAL(n, m)	((n) == (m))
@@ -873,7 +873,7 @@ ws_write(WebSocket *ws, unsigned char op, const void *buf, size_t n)
 			ws->o_state = STATE_O_DRAIN;
 			/* THROUGH */
 		case STATE_O_DRAIN:
-			rc = ws->send(ws->opaque, ws->o_data, ws->o_left);
+			rc = ws->send(ws->ctx, ws->o_data, ws->o_left);
 			if (rc < 0)
 				return rc;
 
@@ -1078,7 +1078,7 @@ static ssize_t ws_handler(WebSocket *ws, union ws_arg *arg, int hnd)
 			len = ws->i_len > WS_I_BUF_LEN(ws) ?
 					WS_I_BUF_LEN(ws) : ws->i_len;
 
-			rc = ws->recv(ws->opaque, WS_I_BUF(ws), len);
+			rc = ws->recv(ws->ctx, WS_I_BUF(ws), len);
 			if (rc <= 0)
 				return rc == 0 ? WS_E_EOF : rc;
 

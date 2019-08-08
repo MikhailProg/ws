@@ -8,9 +8,9 @@
 typedef struct WebSocket WebSocket;
 
 struct WebSocket {
-	void		*opaque;
-	ssize_t		(*recv)(void *, void *, size_t);
-	ssize_t		(*send)(void *, const void *, size_t);
+	void		*ctx;
+	ssize_t		(*recv)(void *ctx, void *buf, size_t n);
+	ssize_t		(*send)(void *ctx, const void *buf, size_t n);
 	unsigned char	srv;
 	unsigned char	op;
 	unsigned char	cont;
@@ -66,7 +66,7 @@ int ws_close(WebSocket *ws, uint16_t ecode, const void *buf, size_t n);
 int ws_handshake(WebSocket *ws, const char *host,
 				const char *uri, const char *uhdrs);
 
-void ws_set_bio(WebSocket *ws, void *opaque,
+void ws_set_bio(WebSocket *ws, void *ctx,
 		 ssize_t (*send)(void *ctx, const void *buf, size_t n),
 		 ssize_t (*recv)(void *ctx, void *buf, size_t n));
 

@@ -1179,7 +1179,7 @@ static ssize_t ws_handler(WebSocket *ws, union ws_arg *arg, int hnd)
 	return -1;
 }
 
-int ws_read(WebSocket *ws, void *buf, size_t n, int *txt)
+ssize_t ws_read(WebSocket *ws, void *buf, size_t n, int *txt)
 {
 	union ws_arg arg;
 	arg.r.buf = buf;

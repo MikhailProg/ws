@@ -44,8 +44,17 @@ struct WebSocket {
 	size_t		o_lenall;
 };
 
+
+/* 0 in case of success and -1 in case of failure. */
 int ws_init(WebSocket *ws, int srv);
 void ws_deinit(WebSocket *ws);
+
+/* handshake is a bit naive, a user can use its own handshake and than
+ * starts using framing functions ws_*_write(), ws_read(), ws_parse(). */
+
+/* 0 in case of success or < 0 in case of failure (see err code below). */
+int ws_handshake(WebSocket *ws, const char *host,
+				const char *uri, const char *uhdrs);
 
 /* ws_txt_write() may send less than n if the buf contains an incomplete
  * UTF-8 character at the buf's end. */
@@ -55,16 +64,14 @@ ssize_t ws_bin_write(WebSocket *ws, const void *buf, size_t n);
 
 /* ws_read and ws_parse garantie to return utf8 complete
  * data for TEXT frame. */
-int ws_read(WebSocket *ws, void *buf, size_t n, int *txt);
+ssize_t ws_read(WebSocket *ws, void *buf, size_t n, int *txt);
+
 int ws_parse(WebSocket *ws, void *opaque,
 	     void (*hnd)(void *opaque, const void *buf, size_t n, int txt));
 
 int ws_ping(WebSocket *ws, const void *buf, size_t n);
 int ws_pong(WebSocket *ws, const void *buf, size_t n);
 int ws_close(WebSocket *ws, uint16_t ecode, const void *buf, size_t n);
-
-int ws_handshake(WebSocket *ws, const char *host,
-				const char *uri, const char *uhdrs);
 
 void ws_set_bio(WebSocket *ws, void *ctx,
 		 ssize_t (*send)(void *ctx, const void *buf, size_t n),

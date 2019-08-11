@@ -44,7 +44,6 @@ struct WebSocket {
 	size_t		o_lenall;
 };
 
-
 /* 0 in case of success and -1 in case of failure. */
 int ws_init(WebSocket *ws, int srv);
 void ws_deinit(WebSocket *ws);
@@ -69,9 +68,11 @@ ssize_t ws_read(WebSocket *ws, void *buf, size_t n, int *txt);
 int ws_parse(WebSocket *ws, void *opaque,
 	     void (*hnd)(void *opaque, const void *buf, size_t n, int txt));
 
+/* For ping, pong, close 0 in case of success or < 0 in case of
+ * failure (see err code below). */
 int ws_ping(WebSocket *ws, const void *buf, size_t n);
 int ws_pong(WebSocket *ws, const void *buf, size_t n);
-int ws_close(WebSocket *ws, uint16_t ecode, const void *buf, size_t n);
+int ws_close(WebSocket *ws, uint16_t ecode, const void *msg, size_t n);
 
 void ws_set_bio(WebSocket *ws, void *ctx,
 		 ssize_t (*send)(void *ctx, const void *buf, size_t n),

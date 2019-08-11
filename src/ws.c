@@ -944,25 +944,25 @@ int ws_pong(WebSocket *ws, const void *buf, size_t n)
 	return (rc = ws_write(ws, OP_PONG, buf, n)) < 0 ? rc : 0;
 }
 
-int ws_close(WebSocket *ws, uint16_t ecode, const void *buf, size_t n)
+int ws_close(WebSocket *ws, uint16_t ecode, const void *msg, size_t n)
 {
 	ssize_t rc;
-	unsigned char data[125];
+	unsigned char buf[125];
 
 	if (n > 123)
 		return WS_E_TOO_LONG;
 
-	put_u16(data, ecode);
+	put_u16(buf, ecode);
 	if (n > 0) {
 		if (ws->utf8_on) {
-			rc = utf8len(buf, n);
+			rc = utf8len(msg, n);
 			if (rc <= 0 || (size_t)rc != n)
 				return WS_E_NON_UTF8;
 		}
-		memcpy(data + 2, buf, n);
+		memcpy(buf + 2, msg, n);
 	}
 
-	return (rc = ws_write(ws, OP_CLOSE, data, n + 2)) < 0 ? rc : 0;
+	return (rc = ws_write(ws, OP_CLOSE, buf, n + 2)) < 0 ? rc : 0;
 }
 
 static ssize_t ws_handler(WebSocket *ws, union ws_arg *arg, int hnd)
